@@ -19,114 +19,78 @@
      Ad platform destinations (Meta, Google Ads, etc.) are gated
      on marketing consent via the ConsentManagerPlugin. -->
 <script>
-window.rudderanalytics = [];
+// Pre-initialize the stub so queued calls work before SDK loads
+window.rudderanalytics = window.rudderanalytics || [];
+
+// ── Helper: read a CookieYes consent category from cookie ─────────────────
+function getCookieYesConsent(category) {
+  try {
+    var match = document.cookie.match(/cookieyes-consent=([^;]+)/);
+    if (!match) return null;
+    var decoded = decodeURIComponent(match[1]);
+    var pair = decoded.match(new RegExp(category + ':([^,]+)'));
+    return pair ? pair[1] : null;
+  } catch (e) { return null; }
+}
+
+// ── Build RudderStack consent state from CookieYes ────────────────────────
+// analytics defaults to true for new visitors (no cookie yet) so the
+// data warehouse always receives events per the consent architecture.
+// Ad platform destinations are gated in the RudderStack UI by category.
+function getRSConsent() {
+  var analytics   = getCookieYesConsent('analytics');
+  var marketing   = getCookieYesConsent('marketing');
+  var functional  = getCookieYesConsent('functional');
+  var performance = getCookieYesConsent('performance');
+  return {
+    necessary:   true,
+    // Default analytics to true when no consent cookie exists yet
+    // so warehouse events are never dropped for new visitors
+    analytics:   analytics   === null ? true : analytics   === 'yes',
+    marketing:   marketing   === 'yes',
+    functional:  functional  === null ? true : functional  === 'yes',
+    performance: performance === 'yes',
+  };
+}
 </script>
+
 <script src="https://cdn.rudderlabs.com/v3/modern/rsa.min.js"
         data-rsa-write-key="3E2uEolQpd6x1LeTk22VNJK2Otv"
+        data-rsa-data-plane-url="https://eugeniedosbtny.dataplane.rudderstack.com"
+        onload="initRudderStack()"
         async></script>
+
 <script>
-(function initRudderStack() {
-
-  // ── Helper: read a single CookieYes consent category ──────────────────
-  // CookieYes sets a cookie named "cookieyes-consent" with values like:
-  // "necessary:yes,analytics:yes,marketing:no,functional:yes,performance:yes"
-  function getCookieYesConsent(category) {
-    try {
-      var match = document.cookie.match(/cookieyes-consent=([^;]+)/);
-      if (!match) return null;
-      var decoded = decodeURIComponent(match[1]);
-      var pair = decoded.match(new RegExp(category + ':([^,]+)'));
-      return pair ? pair[1] : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // ── Build consent object for RudderStack ──────────────────────────────
-  // Maps CookieYes categories to RudderStack consent categories.
-  // Called both on init and on every CookieYes consent update event.
-  function buildConsentObject() {
-    return {
-      // Always allow core tracking (data warehouse, anonymous events)
-      // Only gate ad platform destinations behind marketing consent
-      allowList: [
-        // These destination IDs are always enabled (data warehouse)
-        // Add your warehouse destination IDs here if using allowList mode.
-        // Leave empty to use denyList mode instead (see below).
-      ],
-      // Deny ad platform destinations if marketing consent is not given
-      denyList: (function() {
-        var marketing = getCookieYesConsent('marketing');
-        // If marketing is explicitly 'no' or unknown, deny ad destinations.
-        // Replace these placeholder IDs with your actual RS destination IDs
-        // from the RudderStack control panel (Connections → Destinations).
-        if (marketing !== 'yes') {
-          return [
-            // 'YOUR_META_DESTINATION_ID',
-            // 'YOUR_GOOGLE_ADS_DESTINATION_ID',
-          ];
-        }
-        return [];
-      }()),
-      // Consent categories mapped to CookieYes values
-      consentManagement: {
-        enabled: true,
-        provider: 'custom',
-        // Called by RS to resolve current consent state
-        getConsent: function() {
-          return {
-            // Necessary/functional — always true
-            necessary:   true,
-            functional:  getCookieYesConsent('functional')  === 'yes',
-            // Analytics consent gates analytics destinations
-            analytics:   getCookieYesConsent('analytics')   === 'yes',
-            // Marketing consent gates ad platform destinations
-            marketing:   getCookieYesConsent('marketing')   === 'yes',
-            performance: getCookieYesConsent('performance') === 'yes',
-          };
-        },
-      },
-    };
-  }
-
-  // ── Initialize RudderStack ─────────────────────────────────────────────
+function initRudderStack() {
+  // SDK is now fully loaded — safe to call load()
   window.rudderanalytics.load(
     '3E2uEolQpd6x1LeTk22VNJK2Otv',
     'https://eugeniedosbtny.dataplane.rudderstack.com',
     {
-      consentManagement: buildConsentObject().consentManagement,
-      // Storage: use localStorage so anonymous events survive cookie blocks
-      storage: { type: 'localStorage' },
+      consentManagement: {
+        enabled:  true,
+        provider: 'custom',
+        getConsent: getRSConsent,
+      },
+      storage: { type: 'cookieStorage' },
     }
   );
 
-  // ── Re-apply consent when user updates their preferences ──────────────
-  // CookieYes dispatches 'cookieyes-consent-update' on every accept/reject.
-  // We call rudderanalytics.consent() to re-evaluate destination gating.
+  // ── Re-apply consent whenever user updates CookieYes preferences ────────
   document.addEventListener('cookieyes-consent-update', function(e) {
     try {
-      var detail = e.detail || {};
       window.rudderanalytics.consent({
         consentManagement: {
-          enabled: true,
+          enabled:  true,
           provider: 'custom',
-          getConsent: function() {
-            return {
-              necessary:   true,
-              functional:  (detail.accepted || []).includes('functional')  || getCookieYesConsent('functional')  === 'yes',
-              analytics:   (detail.accepted || []).includes('analytics')   || getCookieYesConsent('analytics')   === 'yes',
-              marketing:   (detail.accepted || []).includes('marketing')   || getCookieYesConsent('marketing')   === 'yes',
-              performance: (detail.accepted || []).includes('performance') || getCookieYesConsent('performance') === 'yes',
-            };
-          },
+          getConsent: getRSConsent,
         },
       });
     } catch (err) {
       console.warn('[RudderStack] consent update error:', err);
     }
   });
-
-}());
+}
 </script>
 <!-- End RudderStack -->
 
@@ -337,7 +301,7 @@ a{text-decoration:none}
 
 /* ── ANIM ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-.fu{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
+.fu{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) forwards}
 .fu1{animation-delay:.05s}.fu2{animation-delay:.12s}.fu3{animation-delay:.2s}.fu4{animation-delay:.28s}.fu5{animation-delay:.36s}
 
 @media(min-width:600px){
@@ -810,7 +774,7 @@ function App(){
         <h2 className="q-text fu fu1">{q[lang].q}</h2>
         <div className="answers-list">
           {q[lang].a.map((txt,i)=>(
-            <button key={i} className={`ans-btn fu fu${i+2}${answers[cur]===i?' selected':''}`} onClick={()=>select(i)}>
+            <button key={i} className={`ans-btn${answers[cur]===i?' selected':''}`} onClick={()=>select(i)}>
               <span className="ans-letter">{['A','B','C','D'][i]}</span>
               <span className="ans-text">{txt}</span>
             </button>
