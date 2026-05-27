@@ -304,7 +304,26 @@ a{text-decoration:none}
 .fu{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) forwards}
 .fu1{animation-delay:.05s}.fu2{animation-delay:.12s}.fu3{animation-delay:.2s}.fu4{animation-delay:.28s}.fu5{animation-delay:.36s}
 
-@media(min-width:600px){
+/* ── LEAD FORM ── */
+.form-divider{display:flex;align-items:center;gap:14px;margin:24px 0}
+.form-divider-line{flex:1;height:1px;background:rgba(255,255,255,0.15)}
+.form-divider-text{font-size:0.8rem;font-weight:800;color:rgba(255,255,255,0.45);letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap}
+.form-subtitle{font-size:0.88rem;color:rgba(255,255,255,0.6);font-weight:600;line-height:1.6;margin-bottom:20px}
+.lead-form{display:flex;flex-direction:column;gap:12px}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:0.72rem;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:0.1em;text-transform:uppercase}
+.form-input{background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);border-radius:var(--r);padding:13px 16px;font-family:var(--sans);font-size:0.9rem;font-weight:600;color:var(--white);outline:none;transition:border-color .2s}
+.form-input::placeholder{color:rgba(255,255,255,0.3)}
+.form-input:focus{border-color:var(--gold2)}
+.form-input.error{border-color:#E05252}
+.form-error{font-size:0.75rem;color:#E05252;font-weight:700}
+.form-submit{background:var(--gold);border:none;border-radius:40px;color:var(--forest2);font-family:var(--sans);font-size:0.88rem;font-weight:900;letter-spacing:0.05em;padding:14px 28px;cursor:pointer;transition:all .25s;margin-top:4px}
+.form-submit:hover:not(:disabled){background:#D4B558;transform:translateY(-1px)}
+.form-submit:disabled{opacity:0.6;cursor:not-allowed}
+.form-success{background:rgba(30,107,58,0.3);border:1.5px solid rgba(30,107,58,0.5);border-radius:var(--r);padding:16px 20px;text-align:center}
+.form-success-icon{font-size:1.6rem;margin-bottom:6px}
+.form-success-text{font-size:0.9rem;font-weight:700;color:var(--white);line-height:1.55}
+
   .areas-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .runners-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 }
@@ -392,8 +411,20 @@ const C={
     alsoTitle:'Vous pourriez aussi aimer…',
     ctaTitle:'Prêt(e) à explorer ces quartiers?',
     ctaBody:'Eugenie Do connaît le marché du Grand Montréal comme sa poche. Prenez 15 minutes pour discuter de vos résultats.',
-    ctaBtn:'Parler à Eugenie',
+    ctaBtn:'📞  +1 514 500-8818',
     retakeBtn:'Refaire le quiz',
+    formDivider:'OU',
+    formSubtitle:'Envoyez-moi un message avec vos questions via le formulaire ci-dessous',
+    formFirstName:'Prénom',
+    formEmail:'Courriel',
+    formFirstNamePlaceholder:'Votre prénom',
+    formEmailPlaceholder:'votre@courriel.com',
+    formSubmit:'Envoyer →',
+    formSubmitting:'Envoi en cours…',
+    formSuccess:'Merci ! Je vous contacterai sous peu.',
+    formErrorRequired:'Ce champ est requis.',
+    formErrorEmail:'Veuillez entrer un courriel valide.',
+    formErrorServer:'Une erreur est survenue. Veuillez réessayer.',
     axisLabels:['Densité urbaine','Taille du ménage','Étape de vie','Identité culturelle','Niveau socio-éco.','Rythme de vie','Vie communautaire','Type de logement','Vie extérieure'],
     profileLabel:'Profil du quartier',
     personaLabel:'Votre persona',
@@ -449,8 +480,20 @@ const C={
     alsoTitle:'You might also like…',
     ctaTitle:'Ready to explore these neighbourhoods?',
     ctaBody:'Eugenie Do knows the Greater Montreal market inside out. Book 15 minutes to talk through your results.',
-    ctaBtn:'Talk to Eugenie',
+    ctaBtn:'📞  +1 514 500-8818',
     retakeBtn:'Retake the quiz',
+    formDivider:'OR',
+    formSubtitle:'Send me a message with your questions using the form below',
+    formFirstName:'First Name',
+    formEmail:'Email',
+    formFirstNamePlaceholder:'Your first name',
+    formEmailPlaceholder:'your@email.com',
+    formSubmit:'Send →',
+    formSubmitting:'Sending…',
+    formSuccess:'Thank you! I\'ll be in touch shortly.',
+    formErrorRequired:'This field is required.',
+    formErrorEmail:'Please enter a valid email address.',
+    formErrorServer:'Something went wrong. Please try again.',
     axisLabels:['Urban Density','Household Size','Life Phase','Cultural Identity','Socioeconomic','Lifestyle Pace','Community Life','Housing Type','Outdoors'],
     profileLabel:'Neighbourhood Profile',
     personaLabel:'Your Persona',
@@ -855,7 +898,7 @@ function App(){
           <div className="result-cta-block fu">
             <h3 className="rcta-title">{c.ctaTitle}</h3>
             <p className="rcta-body">{c.ctaBody}</p>
-            <a className="rcta-btn" href="https://eugeniedo.com" target="_blank" rel="noopener noreferrer"
+            <a className="rcta-btn" href="tel:+15145008818"
               onClick={()=>rs('track','CTA Clicked',{
                 lang,
                 cta_label: c.ctaBtn,
@@ -864,6 +907,18 @@ function App(){
                 top_match_region: results.top.region.en,
               })}
             >{c.ctaBtn}</a>
+
+            {/* Divider */}
+            <div className="form-divider">
+              <div className="form-divider-line"/>
+              <span className="form-divider-text">{c.formDivider}</span>
+              <div className="form-divider-line"/>
+            </div>
+
+            {/* Lead form */}
+            <p className="form-subtitle">{c.formSubtitle}</p>
+            <LeadForm c={c} lang={lang} result={results.top}/>
+
             <button className="rcta-secondary" onClick={startQuiz}>{c.retakeBtn}</button>
           </div>
         </div>
@@ -873,6 +928,132 @@ function App(){
   );
 
   return null;
+}
+
+// ── SUPABASE CONFIG ────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://yxknnrkquislaixrstxl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_-fwJk2eFDQYILOOY-laP8g_-ttER71T';
+
+async function insertLead(payload) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'apikey':        SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Prefer':        'return=minimal',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  return true;
+}
+
+// ── LEAD FORM COMPONENT ───────────────────────────────────────────────────
+function LeadForm({ c, lang, result }) {
+  const [firstName, setFirstName] = useState('');
+  const [email,     setEmail]     = useState('');
+  const [errors,    setErrors]    = useState({});
+  const [status,    setStatus]    = useState('idle'); // idle | submitting | success | error
+  const [serverErr, setServerErr] = useState('');
+
+  const validate = () => {
+    const e = {};
+    if (!firstName.trim()) e.firstName = c.formErrorRequired;
+    if (!email.trim())     e.email     = c.formErrorRequired;
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+                           e.email     = c.formErrorEmail;
+    return e;
+  };
+
+  const handleSubmit = async () => {
+    const e = validate();
+    if (Object.keys(e).length) { setErrors(e); return; }
+    setErrors({});
+    setStatus('submitting');
+
+    const payload = {
+      first_name:       firstName.trim(),
+      email:            email.trim().toLowerCase(),
+      top_match:        result.name,
+      top_match_region: result.region.en,
+      match_pct:        result.pct,
+      lang,
+    };
+
+    try {
+      await insertLead(payload);
+      setStatus('success');
+      // RudderStack identify — attach email to anonymous session
+      rs('identify', email.trim().toLowerCase(), {
+        firstName: firstName.trim(),
+        email:     email.trim().toLowerCase(),
+        lang,
+        top_match:        result.name,
+        top_match_region: result.region.en,
+        match_pct:        result.pct,
+      });
+      rs('track', 'Lead Form Submitted', {
+        lang,
+        top_match:        result.name,
+        top_match_region: result.region.en,
+        match_pct:        result.pct,
+      });
+    } catch (err) {
+      console.error('[Supabase]', err);
+      setServerErr(c.formErrorServer);
+      setStatus('error');
+    }
+  };
+
+  if (status === 'success') return (
+    <div className="form-success">
+      <div className="form-success-icon">✅</div>
+      <p className="form-success-text">{c.formSuccess}</p>
+    </div>
+  );
+
+  return (
+    <div className="lead-form">
+      <div className="form-field">
+        <label className="form-label">{c.formFirstName} *</label>
+        <input
+          className={`form-input${errors.firstName ? ' error' : ''}`}
+          type="text"
+          placeholder={c.formFirstNamePlaceholder}
+          value={firstName}
+          onChange={e => setFirstName(e.target.value)}
+          onFocus={() => setErrors(ev => ({...ev, firstName: undefined}))}
+          disabled={status === 'submitting'}
+        />
+        {errors.firstName && <span className="form-error">{errors.firstName}</span>}
+      </div>
+      <div className="form-field">
+        <label className="form-label">{c.formEmail} *</label>
+        <input
+          className={`form-input${errors.email ? ' error' : ''}`}
+          type="email"
+          placeholder={c.formEmailPlaceholder}
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          onFocus={() => setErrors(ev => ({...ev, email: undefined}))}
+          disabled={status === 'submitting'}
+        />
+        {errors.email && <span className="form-error">{errors.email}</span>}
+      </div>
+      {status === 'error' && <span className="form-error">{serverErr}</span>}
+      <button
+        className="form-submit"
+        onClick={handleSubmit}
+        disabled={status === 'submitting'}
+      >
+        {status === 'submitting' ? c.formSubmitting : c.formSubmit}
+      </button>
+    </div>
+  );
 }
 
 function Footer({c}){
