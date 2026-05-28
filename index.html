@@ -417,8 +417,14 @@ const C={
     formSubtitle:'Envoyez-moi un message avec vos questions via le formulaire ci-dessous',
     formFirstName:'Prénom',
     formEmail:'Courriel',
+    formQuestion:'Votre question',
+    formPhone:'Téléphone',
+    formCountry:'Pays',
+    formConsent:'Je souhaite recevoir des conseils immobiliers et des actualités de quartier d\'Eugenie',
     formFirstNamePlaceholder:'Votre prénom',
     formEmailPlaceholder:'votre@courriel.com',
+    formQuestionPlaceholder:'Quelle est votre question pour Eugenie?',
+    formPhonePlaceholder:'514 500-8818',
     formSubmit:'Envoyer →',
     formSubmitting:'Envoi en cours…',
     formSuccess:'Merci ! Je vous contacterai sous peu.',
@@ -486,8 +492,14 @@ const C={
     formSubtitle:'Send me a message with your questions using the form below',
     formFirstName:'First Name',
     formEmail:'Email',
+    formQuestion:'Your Question',
+    formPhone:'Phone',
+    formCountry:'Country',
+    formConsent:'I\'d like to receive neighbourhood insights and real estate tips from Eugenie',
     formFirstNamePlaceholder:'Your first name',
     formEmailPlaceholder:'your@email.com',
+    formQuestionPlaceholder:'What\'s your question for Eugenie?',
+    formPhonePlaceholder:'514 500-8818',
     formSubmit:'Send →',
     formSubmitting:'Sending…',
     formSuccess:'Thank you! I\'ll be in touch shortly.',
@@ -952,13 +964,94 @@ async function insertLead(payload) {
   return true;
 }
 
+// ── UTM PARSER ────────────────────────────────────────────────────────────
+function getUtms() {
+  // UTMs may be in query string even with hash routing e.g. /#/fr?utm_source=...
+  // Check both window.location.search and the hash portion
+  const search = window.location.search ||
+    (window.location.hash.includes('?') ? '?' + window.location.hash.split('?')[1] : '');
+  const p = new URLSearchParams(search);
+  return {
+    utm_source:   p.get('utm_source')   || null,
+    utm_medium:   p.get('utm_medium')   || null,
+    utm_campaign: p.get('utm_campaign') || null,
+    utm_content:  p.get('utm_content')  || null,
+    utm_term:     p.get('utm_term')     || null,
+  };
+}
+
+// ── COUNTRY + DIAL CODE DATA ──────────────────────────────────────────────
+const COUNTRIES = [
+  { code:'CA', name:'Canada',               dial:'+1'   },
+  { code:'US', name:'United States',        dial:'+1'   },
+  { code:'FR', name:'France',               dial:'+33'  },
+  { code:'GB', name:'United Kingdom',       dial:'+44'  },
+  { code:'BE', name:'Belgium',              dial:'+32'  },
+  { code:'CH', name:'Switzerland',          dial:'+41'  },
+  { code:'LU', name:'Luxembourg',           dial:'+352' },
+  { code:'MA', name:'Morocco',              dial:'+212' },
+  { code:'DZ', name:'Algeria',              dial:'+213' },
+  { code:'TN', name:'Tunisia',              dial:'+216' },
+  { code:'HT', name:'Haiti',               dial:'+509' },
+  { code:'CN', name:'China',               dial:'+86'  },
+  { code:'IN', name:'India',               dial:'+91'  },
+  { code:'PH', name:'Philippines',         dial:'+63'  },
+  { code:'VN', name:'Vietnam',             dial:'+84'  },
+  { code:'BR', name:'Brazil',              dial:'+55'  },
+  { code:'MX', name:'Mexico',              dial:'+52'  },
+  { code:'CO', name:'Colombia',            dial:'+57'  },
+  { code:'AU', name:'Australia',           dial:'+61'  },
+  { code:'DE', name:'Germany',             dial:'+49'  },
+  { code:'IT', name:'Italy',               dial:'+39'  },
+  { code:'PT', name:'Portugal',            dial:'+351' },
+  { code:'ES', name:'Spain',               dial:'+34'  },
+  { code:'NL', name:'Netherlands',         dial:'+31'  },
+  { code:'LB', name:'Lebanon',             dial:'+961' },
+  { code:'NG', name:'Nigeria',             dial:'+234' },
+  { code:'GH', name:'Ghana',              dial:'+233' },
+  { code:'SN', name:'Senegal',            dial:'+221' },
+  { code:'CI', name:'Côte d\'Ivoire',     dial:'+225' },
+  { code:'CM', name:'Cameroon',           dial:'+237' },
+];
+const DEFAULT_COUNTRY = COUNTRIES[0]; // Canada
+
+function findCountry(code) {
+  return COUNTRIES.find(c => c.code === code) || DEFAULT_COUNTRY;
+}
+
 // ── LEAD FORM COMPONENT ───────────────────────────────────────────────────
 function LeadForm({ c, lang, result }) {
-  const [firstName, setFirstName] = useState('');
-  const [email,     setEmail]     = useState('');
-  const [errors,    setErrors]    = useState({});
-  const [status,    setStatus]    = useState('idle'); // idle | submitting | success | error
-  const [serverErr, setServerErr] = useState('');
+  const [firstName,  setFirstName]  = useState('');
+  const [email,      setEmail]      = useState('');
+  const [question,   setQuestion]   = useState('');
+  const [phone,      setPhone]      = useState('');
+  const [country,    setCountry]    = useState(DEFAULT_COUNTRY);
+  const [consent,    setConsent]    = useState(false);
+  const [errors,     setErrors]     = useState({});
+  const [status,     setStatus]     = useState('idle'); // idle | submitting | success | error
+  const [serverErr,  setServerErr]  = useState('');
+  const [geoLoading, setGeoLoading] = useState(true);
+
+  // Geo-detect country on mount
+  useEffect(() => {
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.country_code) setCountry(findCountry(d.country_code));
+      })
+      .catch(() => {}) // silently fall back to Canada
+      .finally(() => setGeoLoading(false));
+  }, []);
+
+  // Build E.164 phone number
+  const buildE164 = (rawPhone, dialCode) => {
+    const digits = rawPhone.replace(/\D/g, '');
+    if (!digits) return null;
+    const dialDigits = dialCode.replace(/\D/g, '');
+    // Avoid doubling the country code if user already typed it
+    if (digits.startsWith(dialDigits)) return '+' + digits;
+    return dialCode + digits;
+  };
 
   const validate = () => {
     const e = {};
@@ -966,6 +1059,7 @@ function LeadForm({ c, lang, result }) {
     if (!email.trim())     e.email     = c.formErrorRequired;
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
                            e.email     = c.formErrorEmail;
+    if (!question.trim())  e.question  = c.formErrorRequired;
     return e;
   };
 
@@ -975,39 +1069,59 @@ function LeadForm({ c, lang, result }) {
     setErrors({});
     setStatus('submitting');
 
+    const utms = getUtms();
+    const e164 = phone.trim() ? buildE164(phone.trim(), country.dial) : null;
+
     const payload = {
-      first_name:       firstName.trim(),
-      email:            email.trim().toLowerCase(),
-      top_match:        result.name,
-      top_match_region: result.region.en,
-      match_pct:        result.pct,
+      first_name:         firstName.trim(),
+      email:              email.trim().toLowerCase(),
+      question:           question.trim(),
+      phone:              e164,
+      country:            country.name,
+      marketing_consent:  consent,
+      source_url:         window.location.href,
+      top_match:          result.name,
+      top_match_region:   result.region.en,
+      match_pct:          result.pct,
       lang,
+      ...utms,
     };
 
     try {
       await insertLead(payload);
       setStatus('success');
-      // RudderStack identify — attach email to anonymous session
+
+      // RudderStack identify — stitch email to anonymous session
       rs('identify', email.trim().toLowerCase(), {
-        firstName: firstName.trim(),
-        email:     email.trim().toLowerCase(),
+        firstName:          firstName.trim(),
+        email:              email.trim().toLowerCase(),
+        phone:              e164,
+        country:            country.name,
+        marketing_consent:  consent,
         lang,
-        top_match:        result.name,
-        top_match_region: result.region.en,
-        match_pct:        result.pct,
+        top_match:          result.name,
+        top_match_region:   result.region.en,
+        match_pct:          result.pct,
       });
+
       rs('track', 'Lead Form Submitted', {
         lang,
-        top_match:        result.name,
-        top_match_region: result.region.en,
-        match_pct:        result.pct,
+        top_match:          result.name,
+        top_match_region:   result.region.en,
+        match_pct:          result.pct,
+        has_phone:          !!e164,
+        marketing_consent:  consent,
+        ...utms,
       });
+
     } catch (err) {
       console.error('[Supabase]', err);
       setServerErr(c.formErrorServer);
       setStatus('error');
     }
   };
+
+  const clearErr = field => setErrors(ev => ({...ev, [field]: undefined}));
 
   if (status === 'success') return (
     <div className="form-success">
@@ -1018,39 +1132,79 @@ function LeadForm({ c, lang, result }) {
 
   return (
     <div className="lead-form">
+
+      {/* First Name */}
       <div className="form-field">
         <label className="form-label">{c.formFirstName} *</label>
-        <input
-          className={`form-input${errors.firstName ? ' error' : ''}`}
-          type="text"
-          placeholder={c.formFirstNamePlaceholder}
-          value={firstName}
-          onChange={e => setFirstName(e.target.value)}
-          onFocus={() => setErrors(ev => ({...ev, firstName: undefined}))}
-          disabled={status === 'submitting'}
-        />
+        <input className={`form-input${errors.firstName?' error':''}`}
+          type="text" placeholder={c.formFirstNamePlaceholder}
+          value={firstName} onChange={e=>setFirstName(e.target.value)}
+          onFocus={()=>clearErr('firstName')} disabled={status==='submitting'}/>
         {errors.firstName && <span className="form-error">{errors.firstName}</span>}
       </div>
+
+      {/* Email */}
       <div className="form-field">
         <label className="form-label">{c.formEmail} *</label>
-        <input
-          className={`form-input${errors.email ? ' error' : ''}`}
-          type="email"
-          placeholder={c.formEmailPlaceholder}
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          onFocus={() => setErrors(ev => ({...ev, email: undefined}))}
-          disabled={status === 'submitting'}
-        />
+        <input className={`form-input${errors.email?' error':''}`}
+          type="email" placeholder={c.formEmailPlaceholder}
+          value={email} onChange={e=>setEmail(e.target.value)}
+          onFocus={()=>clearErr('email')} disabled={status==='submitting'}/>
         {errors.email && <span className="form-error">{errors.email}</span>}
       </div>
-      {status === 'error' && <span className="form-error">{serverErr}</span>}
-      <button
-        className="form-submit"
-        onClick={handleSubmit}
-        disabled={status === 'submitting'}
-      >
-        {status === 'submitting' ? c.formSubmitting : c.formSubmit}
+
+      {/* Question */}
+      <div className="form-field">
+        <label className="form-label">{c.formQuestion} *</label>
+        <textarea className={`form-input${errors.question?' error':''}`}
+          placeholder={c.formQuestionPlaceholder} rows={3}
+          value={question} onChange={e=>setQuestion(e.target.value)}
+          onFocus={()=>clearErr('question')} disabled={status==='submitting'}
+          style={{resize:'vertical',minHeight:'80px',fontFamily:'inherit'}}/>
+        {errors.question && <span className="form-error">{errors.question}</span>}
+      </div>
+
+      {/* Country */}
+      <div className="form-field">
+        <label className="form-label">{c.formCountry}</label>
+        <select className="form-input" value={country.code}
+          onChange={e=>setCountry(findCountry(e.target.value))}
+          disabled={status==='submitting'||geoLoading}
+          style={{appearance:'auto',cursor:'pointer'}}>
+          {COUNTRIES.map(co=>(
+            <option key={co.code} value={co.code}>{co.name} ({co.dial})</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Phone */}
+      <div className="form-field">
+        <label className="form-label">{c.formPhone} <span style={{opacity:0.45,fontWeight:600,letterSpacing:0}}>(optional)</span></label>
+        <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+          <span style={{background:'rgba(255,255,255,0.08)',border:'1.5px solid rgba(255,255,255,0.15)',borderRadius:'var(--r)',padding:'13px 12px',color:'var(--gold2)',fontWeight:800,fontSize:'0.85rem',whiteSpace:'nowrap',minWidth:'56px',textAlign:'center'}}>
+            {country.dial}
+          </span>
+          <input className="form-input" type="tel"
+            placeholder={c.formPhonePlaceholder} value={phone}
+            onChange={e=>setPhone(e.target.value)}
+            disabled={status==='submitting'} style={{flex:1}}/>
+        </div>
+      </div>
+
+      {/* Marketing consent */}
+      <label style={{display:'flex',alignItems:'flex-start',gap:'12px',cursor:'pointer',padding:'14px 16px',background:'rgba(255,255,255,0.05)',borderRadius:'var(--r)',border:'1.5px solid rgba(255,255,255,0.1)'}}>
+        <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}
+          disabled={status==='submitting'}
+          style={{marginTop:'2px',accentColor:'var(--gold)',width:'16px',height:'16px',flexShrink:0}}/>
+        <span style={{fontSize:'0.83rem',color:'rgba(255,255,255,0.7)',fontWeight:600,lineHeight:1.55}}>
+          {c.formConsent}
+        </span>
+      </label>
+
+      {status==='error' && <span className="form-error">{serverErr}</span>}
+
+      <button className="form-submit" onClick={handleSubmit} disabled={status==='submitting'}>
+        {status==='submitting' ? c.formSubmitting : c.formSubmit}
       </button>
     </div>
   );
