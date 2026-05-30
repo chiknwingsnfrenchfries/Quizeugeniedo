@@ -966,7 +966,6 @@ function DonutChart({ pct, size=120, stroke=10, dark=false }) {
   const ref = useRef(null);
 
   useEffect(() => {
-    // Animate on mount via IntersectionObserver
     const obs = new IntersectionObserver(([e]) => {
       if (e.isIntersecting) { setAnimated(true); obs.disconnect(); }
     }, { threshold: 0.3 });
@@ -974,37 +973,63 @@ function DonutChart({ pct, size=120, stroke=10, dark=false }) {
     return () => obs.disconnect();
   }, []);
 
-  const r      = (size - stroke) / 2;
-  const circ   = 2 * Math.PI * r;
+  const r    = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
   const offset = circ - (animated ? pct / 100 : 0) * circ;
-  const cx     = size / 2;
+  const cx   = size / 2;
 
-  // Gradient colour based on score — mirrors the screenshot palette
-  const color = pct >= 80 ? '#F0A500'   // gold
-              : pct >= 65 ? '#E8B84B'   // amber
-              : pct >= 50 ? '#E07020'   // orange
-              :              '#C04030';  // red-orange
+  const color = pct >= 80 ? '#F0A500'
+              : pct >= 65 ? '#E8B84B'
+              : pct >= 50 ? '#E07020'
+              :              '#C04030';
+
+  const textColor = dark ? '#2B3A28' : '#FFFFFF';
+  const subColor  = dark ? '#888888' : 'rgba(255,255,255,0.6)';
 
   return (
     <div className="donut-wrap" ref={ref}>
-      <svg width={size} height={size} className="donut-svg">
-        <circle className="donut-bg" cx={cx} cy={cx} r={r} strokeWidth={stroke}
-          stroke={dark ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)'}/>
-        <circle className="donut-fill" cx={cx} cy={cx} r={r} strokeWidth={stroke}
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{display:'block'}}>
+        {/* Background ring */}
+        <circle
+          cx={cx} cy={cx} r={r}
+          fill="none"
+          stroke={dark ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.12)'}
+          strokeWidth={stroke}
+        />
+        {/* Progress ring — starts at top (rotated -90deg) */}
+        <circle
+          cx={cx} cy={cx} r={r}
+          fill="none"
           stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
           strokeDasharray={circ}
-          strokeDashoffset={offset}/>
-        {/* Labels — counter-rotate so text is upright */}
-        <g transform={`rotate(90 ${cx} ${cx})`}>
-          <text className="donut-label" x={cx} y={cx - 6}
-            fontSize={size * 0.22} fill={dark ? 'var(--forest)' : 'var(--white)'}>
-            {pct}
-          </text>
-          <text className="donut-sublabel" x={cx} y={cx + size * 0.16}
-            fontSize={size * 0.1} fill={dark ? 'var(--mid)' : 'rgba(255,255,255,0.5)'}>
-            %
-          </text>
-        </g>
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${cx} ${cx})`}
+          style={{transition:'stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)'}}
+        />
+        {/* Percentage number — centred, no rotation needed */}
+        <text
+          x={cx}
+          y={cx - size * 0.06}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontFamily="'Playfair Display', Georgia, serif"
+          fontWeight="800"
+          fontSize={size * 0.24}
+          fill={color}
+        >{pct}</text>
+        {/* % symbol below */}
+        <text
+          x={cx}
+          y={cx + size * 0.18}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontFamily="'Nunito', sans-serif"
+          fontWeight="700"
+          fontSize={size * 0.11}
+          fill={subColor}
+        >%</text>
       </svg>
     </div>
   );
